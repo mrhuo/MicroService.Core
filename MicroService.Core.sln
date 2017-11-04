@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.27004.2006
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MicroService.Core", "MicroService.Core\MicroService.Core.csproj", "{640968F3-C9D1-4D65-AF5A-824EBCA2C3FA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MicroService.Samples", "MicroService.Samples\MicroService.Samples.csproj", "{7519C857-584F-4806-AD7B-0C35BEC5DBA9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{640968F3-C9D1-4D65-AF5A-824EBCA2C3FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{640968F3-C9D1-4D65-AF5A-824EBCA2C3FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{640968F3-C9D1-4D65-AF5A-824EBCA2C3FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7519C857-584F-4806-AD7B-0C35BEC5DBA9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7519C857-584F-4806-AD7B-0C35BEC5DBA9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7519C857-584F-4806-AD7B-0C35BEC5DBA9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7519C857-584F-4806-AD7B-0C35BEC5DBA9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
