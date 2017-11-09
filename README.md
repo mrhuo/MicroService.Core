@@ -1,15 +1,10 @@
 ## MicroService.Core <a name="top" href="#top"></a>
 
-<b style='color:red'>
-注意：此文档和源码属于V1版本，不再更新，不过和V2版本使用方法不会改变。
-</b>
-
 > `MicroService.Core` 的初衷是为了方便的创建一个微服务，
 > 可作为 Windows Service 或者控制台模式启动。
-> 它底层使用了 OWin 自托管技术，抛弃了微软 Mvc 的那套东
-> 西，进而选择了 Nancy，使得开发过程很顺心，很简单！
+> 它底层使用了 Nancy，使得开发过程很简单，很舒服！
 > 
-><b style='color:red'>注意：V2 版本不再有 OWIN 了</b>
+><b style='color:red'>注意：最新版本不再有 OWIN 了</b>
 
 * [快速入门](#quick-start)
 * [框架构成](#principle)
@@ -21,7 +16,7 @@
 #### 一、创建控制台项目（需要.net 4.5以上）
 #### 二、安装Nuget包
 ```
-PM> Install-Package MicroService.Core -Version 1.1.1
+PM> Install-Package MicroService.Core -Version 1.2
 ```
 或在 Nuget 包管理器中搜索 `MicroService.Core` 安装。
 #### 三、编写 Program.cs，输入以下代码
