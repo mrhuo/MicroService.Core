@@ -19,7 +19,7 @@ namespace MicroService.Core
         public HealthModule(ServiceStatus serviceStatus)
         {
             //注册 /health 接口用于输出服务状态
-            Get["/health"] = _ => Response.AsJson(serviceStatus.GetStatus());
+            Get[serviceStatus.GetValue<string>(ServiceStatus.KEY_HEALTH_URL)] = _ => Response.AsJson(serviceStatus.GetStatus());
         }
     }
 }

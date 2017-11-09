@@ -1,10 +1,9 @@
 ﻿using MicroService.Core.ServiceInternal;
-using Microsoft.Owin.Hosting;
 using Nancy;
 using Nancy.Bootstrapper;
+using Nancy.Hosting.Self;
 using Nancy.Owin;
 using Nancy.TinyIoc;
-using Owin;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -39,6 +38,10 @@ namespace MicroService.Core
         /// 服务绑定的 URL
         /// </summary>
         private string[] runningUrls;
+        /// <summary>
+        /// 健康检测 URL
+        /// </summary>
+        private string healthUrl;
         /// <summary>
         /// 服务状态
         /// </summary>
@@ -95,6 +98,17 @@ namespace MicroService.Core
                     return;
                 }
                 this.serviceDisplayName = value;
+            }
+        }
+
+        /// <summary>
+        /// 服务健康指示 URL
+        /// </summary>
+        public string HealthUrl
+        {
+            get
+            {
+                return this.healthUrl;
             }
         }
 
@@ -289,22 +303,6 @@ namespace MicroService.Core
         /// 服务运行模式
         /// </summary>
         public RunningMode ServiceRunningMode { get; set; }
-
-        /// <summary>
-        /// 内部 OWIN 启动时使用的启动参数
-        /// </summary>
-        private StartOptions StartOptions
-        {
-            get
-            {
-                var options = new StartOptions();
-                foreach (var item in this.RunningUrls)
-                {
-                    options.Urls.Add(item.Trim());
-                }
-                return options;
-            }
-        }
         #endregion
 
         #region [Events]
@@ -359,11 +357,6 @@ namespace MicroService.Core
         /// Window 服务管理器
         /// </summary>
         private WindowsServiceManager serviceManager;
-        /// <summary>
-        /// 扩展的可用于构造 OWIN IAppBuilder 的方法列表
-        /// </summary>
-        private List<Action<IAppBuilder>> configActionList = new List<Action<IAppBuilder>>();
-
         /// <summary>
         /// Nancy ioc container
         /// </summary>
@@ -421,7 +414,8 @@ namespace MicroService.Core
 
             this.serviceName = serviceName;
             this.serviceDisplayName = serviceDisplayName ?? this.serviceName;
-            this.serviceStatus = new ServiceStatus(serviceName, string.Join(",", this.RunningUrls));
+
+            this.healthUrl = this.GetConfig("server.healthUrl") ?? "/health";
 
             this.cancellationTokenSource = new CancellationTokenSource();
             this.cancellationToken = this.cancellationTokenSource.Token;
@@ -470,11 +464,6 @@ namespace MicroService.Core
             MicroServiceBase service,
             ServiceStatus status)
         { }
-        /// <summary>
-        /// 在子类重写时，在调用 OWIN 初始化方法时会调用此方法，用于向 OWIN 增加新功能
-        /// </summary>
-        /// <param name="app"></param>
-        protected virtual void ConfigureOwin(IAppBuilder app) { }
         /// <summary>
         /// 在子类中重写时，可处理 Nancy Pipelines 完成扩展功能
         /// </summary>
@@ -576,7 +565,6 @@ namespace MicroService.Core
             {
                 throw new Exception($"服务[{serviceName}]已运行，不能重复运行！");
             }
-
             this.registedModules =
                  from t in AppDomainAssemblyTypeScanner
                            .TypesOf<INancyModule>(ScanMode.ExcludeNancyNamespace)
@@ -585,9 +573,9 @@ namespace MicroService.Core
             if (args.Contains("--console"))
             {
                 WriteToLog($"服务[{serviceName}]正在使用控制台模式启动");
+                this.ServiceRunningMode = RunningMode.Console;
                 //run in console
                 this.InternalRun();
-                this.ServiceRunningMode = RunningMode.Console;
                 this.OnServiceStarted?.Invoke(this);
                 WriteToLog($"服务[{serviceName}]使用控制台模式启动成功，按 ENTER 退出控制台程序！");
                 Console.ReadLine();
@@ -603,6 +591,14 @@ namespace MicroService.Core
                 serviceManager.Stop();
                 serviceManager.UnInstall();
             }
+            else if (args.Contains("--start"))
+            {
+                serviceManager.Start();
+            }
+            else if (args.Contains("--stop"))
+            {
+                serviceManager.Stop();
+            }
             else
             {
                 //window service main entry
@@ -611,8 +607,8 @@ namespace MicroService.Core
                     new InternalService(this)
                 };
                 WriteToLog($"服务[{serviceName}]正在使用Window服务模式启动");
-                ServiceBase.Run(servicesToRun);
                 this.ServiceRunningMode = RunningMode.WindowsService;
+                ServiceBase.Run(servicesToRun);
                 this.OnServiceStarted?.Invoke(this);
                 WriteToLog($"服务[{serviceName}]使用Window服务模式启动成功");
             }
@@ -669,6 +665,7 @@ namespace MicroService.Core
         /// </summary>
         internal void InternalRun()
         {
+            this.serviceStatus = new ServiceStatus(this);
             this.bootstrap = new CustomBootstrapper(
                 this,
                 this.registedModules,
@@ -676,47 +673,26 @@ namespace MicroService.Core
                 this.OnRequestStart,
                 this.EnableCors);
 
-            this.serverDisposable = WebApp.Start(this.StartOptions, (app) =>
+            var urls = new List<Uri>();
+            this.RunningUrls.ToList().ForEach((u) =>
             {
-                try
-                {
-                    //使用 Nancy 框架
-                    app.UseNancy((options) =>
-                    {
-                        options.Bootstrapper = bootstrap;
-                        options.PassThroughWhenStatusCodesAre(
-                            HttpStatusCode.NotFound,
-                            HttpStatusCode.InternalServerError
-                        );
-                    });
-                }
-                catch (Exception ex)
-                {
-                    WriteToLog(ex.Message, ex);
-                }
-
-                //配置 OWIN，预留作为扩展
-                try
-                {
-                    this.ConfigureOwin(app);
-                }
-                catch (Exception ex)
-                {
-                    WriteToLog("ConfigurationOwin(app) 发生异常！", ex);
-                }
+                urls.Add(new Uri(u));
             });
+
+            this.serverDisposable = new NancyHost(this.bootstrap, urls.ToArray());
+            ((NancyHost)this.serverDisposable).Start();
             serviceRunning = true;
 
             //输出已注册的模块
             this.OutputRegistedModules();
             this.StartUpdateServiceStatusThread();
-            this.WriteToLog($"服务 {serviceName} 已运行，端口 {string.Join(", ", this.RunningUrls)}");
+            this.WriteToLog($"服务[{serviceName}]已运行，端口 {string.Join(", ", this.RunningUrls)}");
         }
         #endregion
 
         #region [IDisposable Support]
         // 要检测冗余调用
-        private bool disposedValue = false; 
+        private bool disposedValue = false;
         /// <summary>
         /// 释放系统资源
         /// </summary>
@@ -729,12 +705,14 @@ namespace MicroService.Core
                 {
                     if (disposing)
                     {
+                        ((NancyHost)this.serverDisposable).Stop();
+
                         this.cancellationTokenSource.Dispose();
                         this.bootstrap.Dispose();
                         this.serverDisposable.Dispose();
                         log4net.LogManager.Shutdown();
                     }
-                    
+
                     this.logger = null;
                 }
                 catch { }

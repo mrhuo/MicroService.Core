@@ -27,18 +27,28 @@ namespace MicroService.Core
         /// 服务状态 RunTime KEY
         /// </summary>
         public const string KEY_RUN_TIME = "RunTime";
+        /// <summary>
+        /// 服务状态 RunMode KEY
+        /// </summary>
+        public const string KEY_RUN_MODE = "RunMode";
+        /// <summary>
+        /// 服务状态 Health KEY
+        /// </summary>
+        public const string KEY_HEALTH_URL = "Health";
         private readonly ConcurrentDictionary<string, dynamic> statusDict;
 
         /// <summary>
         /// 默认构造函数，仅允许初始化一次
         /// </summary>
-        public ServiceStatus(string serviceName,  string urls)
+        public ServiceStatus(MicroServiceBase service)
         {
             this.statusDict = new ConcurrentDictionary<string, dynamic>
             {
                 [KEY_START_TIME] = DateTime.Now,
-                [KEY_SERVICE_URLS] = urls,
-                [KEY_SERVICE_NAME] = serviceName
+                [KEY_SERVICE_URLS] = service.RunningUrls,
+                [KEY_SERVICE_NAME] = service.ServiceName,
+                [KEY_RUN_MODE] = service.ServiceRunningMode.ToString(),
+                [KEY_HEALTH_URL] = service.HealthUrl
             };
         }
 
@@ -49,21 +59,19 @@ namespace MicroService.Core
         /// <param name="value"></param>
         public void AddOrUpdate(string key, dynamic value)
         {
-            if (KEY_START_TIME.Equals(key, StringComparison.CurrentCultureIgnoreCase))
+            var disAllowUpdateKeys = new List<string>() {
+                KEY_START_TIME,
+                KEY_RUN_TIME,
+                KEY_SERVICE_URLS,
+                KEY_SERVICE_NAME,
+                KEY_RUN_MODE
+            };
+            foreach (var item in disAllowUpdateKeys)
             {
-                throw new Exception($"名称为 {KEY_START_TIME} 的键已存在，不允许更新！");
-            }
-            if (KEY_RUN_TIME.Equals(key, StringComparison.CurrentCultureIgnoreCase))
-            {
-                throw new Exception($"名称为 {KEY_RUN_TIME} 的键为预留字段，不允许手动更新！");
-            }
-            if (KEY_SERVICE_URLS.Equals(key, StringComparison.CurrentCultureIgnoreCase))
-            {
-                throw new Exception($"名称为 {KEY_SERVICE_URLS} 的键为预留字段，不允许手动更新！");
-            }
-            if (KEY_SERVICE_NAME.Equals(key, StringComparison.CurrentCultureIgnoreCase))
-            {
-                throw new Exception($"名称为 {KEY_SERVICE_NAME} 的键为预留字段，不允许手动更新！");
+                if (item.Equals(key, StringComparison.CurrentCultureIgnoreCase))
+                {
+                    throw new Exception($"名称为 {item} 的键为内置属性，不允许更新！");
+                }
             }
             this.statusDict[key] = value;
         }
